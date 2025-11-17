@@ -9,10 +9,10 @@ run in a single container.
 docker build . -t mongo-provision
 
 # Start a 3-node replica set:
-docker run -it --rm -p27017-27019:27017-27019 mongo-provision 5.0 --replicaset --nodes 3
+docker run -it --rm -p27017-27019:27017-27019 mongo-provision 8.0 --replicaset --nodes 3
 
 # … or, for a sharded cluster:
-docker run -it --rm -p27017:27017 mongo-provision 5.0 --replicaset --sharded 3 --nodes 3
+docker run -it --rm -p27017:27017 mongo-provision 8.0 --replicaset --sharded 3 --nodes 3
 ```
 The above will hang indefinitely until you kill it (e.g., via CTRL-C).
 
@@ -27,8 +27,10 @@ mongosh mongodb://localhost:27017
 … and you’re in!
 
 ## Syntax
-The arguments to the container are those you’d give to
-[mtools](https://github.com/rueckstiess/mtools)’s `init` subcommand.
+The arguments to the container are:
+- a version number, e.g., `8.0`
+- args such as you’d give to [mtools](https://github.com/rueckstiess/mtools)’s
+`init` subcommand.
 
 ## Caveats
 - You **MUST** anticipate the bound ports and export them.
