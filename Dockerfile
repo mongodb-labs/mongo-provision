@@ -7,6 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     python3-pip \
     gcc python3-dev
 
+# Clear out the package stuff for lightness.
+RUN rm -rf /var/lib/apt/lists/*
+
 # This OS’s latest Python is 3.8.10.
 # That python’s latest compatible PyMongo is 4.10.1.
 RUN pip3 install mtools[all]
