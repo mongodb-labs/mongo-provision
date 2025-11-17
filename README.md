@@ -11,14 +11,18 @@ docker build . -t mongo-provision
 # Start a 3-node replica set:
 docker run -it --rm -p27017-27019:27017-27019 mongo-provision 5.0 --replicaset --nodes 3
 
-… or, for a sharded cluster:
+# … or, for a sharded cluster:
 docker run -it --rm -p27017:27017 mongo-provision 5.0 --replicaset --sharded 3 --nodes 3
 ```
 The above will hang indefinitely until you kill it (e.g., via CTRL-C).
 
 Then, in another terminal, run:
 ```
+# for the replset:
 mongosh mongodb://localhost:27017,localhost:27018,localhost:27019
+
+# … or, for sharded:
+mongosh mongodb://localhost:27017
 ```
 … and you’re in!
 
