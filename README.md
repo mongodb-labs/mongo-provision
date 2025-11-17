@@ -31,6 +31,11 @@ The arguments to the container are:
 - a version number (e.g., `8.0`) to give to [m](https://github.com/aheckmann/m)
 - args for [mtools](https://github.com/rueckstiess/mtools)’s `init` subcommand
 
+## Preserving state
+This container stores its state (e.g., mongod data files) under `/data`.
+To introspect that state outside the container, mount a volume to that path
+in the container.
+
 ## Caveats
 - You **MUST** anticipate the bound ports and export them.
 - The container’s platform will dictate server version availability. For example,
