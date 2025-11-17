@@ -28,9 +28,8 @@ mongosh mongodb://localhost:27017
 
 ## Syntax
 The arguments to the container are:
-- a version number, e.g., `8.0`
-- args such as you’d give to [mtools](https://github.com/rueckstiess/mtools)’s
-`init` subcommand.
+- a version number (e.g., `8.0`) to give to [m](https://github.com/aheckmann/m)
+- args for [mtools](https://github.com/rueckstiess/mtools)’s `init` subcommand
 
 ## Caveats
 - You **MUST** anticipate the bound ports and export them.
@@ -40,5 +39,7 @@ The arguments to the container are:
 
 ## Acknowledgements
 
-Besides [mtools](https://github.com/rueckstiess/mtools), this uses
-[m](https://github.com/aheckmann/m) to download MongoDB releases.
+This uses:
+
+- [mtools](https://github.com/rueckstiess/mtools)
+- [m](https://github.com/aheckmann/m)
