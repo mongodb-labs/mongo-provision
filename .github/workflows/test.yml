@@ -1,0 +1,58 @@
+on:
+  push:
+    branches:
+      - '*'
+    tags-ignore:
+      - '*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: test
+
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - 4.0
+          - 4.2
+          - 4.4
+          - 5.0
+          - 6.0
+          - 7.0
+          - 8.0
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: uname -a
+      - run: ldconfig -p
+      - run: lsb_release -a
+
+      - name: install mongosh
+        run: npm install -g mongosh
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+#      - name: Set up QEMU
+#        if: ${{ matrix.arch != 'amd64' }}
+#        uses: docker/setup-qemu-action@v2
+#
+#      - name: Set up Docker Buildx
+#        if: ${{ matrix.arch != 'amd64' }}
+#        uses: docker/setup-buildx-action@v2
+
+      - name: build
+        #run: docker buildx build . --platform linux/${{matrix.arch}} --output type=docker,dest=$arch
+        run: docker buildx build . --tag mongo-provision
+
+      - name: test
+        run: |
+            set -o errexit
+
+            docker run -it --rm -p 27017:27017 mongo-provision 6.0 --single &
+            mpid="$!"
+
+            timeout 1m while ! mongosh --eval 'show dbs'; sleep 1; done
