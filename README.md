@@ -14,7 +14,7 @@ docker run -it --rm -p27017-27019:27017-27019 mongo-provision 8.0 --replicaset -
 # … or, for a sharded cluster:
 docker run -it --rm -p27017:27017 mongo-provision 8.0 --replicaset --sharded 3 --nodes 3
 ```
-The above will hang indefinitely until you kill it (e.g., via CTRL-C).
+The above will hang indefinitely until you kill it, e.g., via CTRL-C.
 
 Then, in another terminal, run:
 ```
