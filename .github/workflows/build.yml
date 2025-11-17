@@ -1,0 +1,30 @@
+on:
+  push:
+    branches:
+      - '*'
+    tags-ignore:
+      - '*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: build
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+
+    steps:
+      - run: uname -a
+      - run: ldconfig -p
+      - run: lsb_release -a
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: build
+        run: docker buildx build --platform linux/${matrix.arch} --output type=docker,dest=$arch
