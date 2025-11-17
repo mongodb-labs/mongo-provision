@@ -55,4 +55,4 @@ jobs:
             docker run -i --rm -p 27017:27017 mongo-provision 6.0 --single &
             mpid="$!"
 
-            timeout 1m while ! mongosh --eval 'show dbs'; do sleep 1; done
+            timeout 1m sh -c "while ! mongosh --eval 'show dbs'; do sleep 1; done"
