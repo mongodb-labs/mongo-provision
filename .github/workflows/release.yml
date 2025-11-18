@@ -42,9 +42,11 @@ jobs:
           git tag --list --format='%(contents)' "$TAG_NAME" > RELEASE-NOTES
 
           for cur_arch in $ARCH; do
-            docker buildx build . \
-              --platform "linux/$cur_arch" \
-              --output "type=docker,dest=${{ github.repository_name }}-$TAG_NAME-$cur_arch.tar"
+            docker build . --platform linux/$cur_arch -t ${{ github.repository_name }}
+            docker save ${{ github.repository_name }} -o "${{ github.repository_name }}-$TAG_NAME-$cur_arch.tar"
+#            docker buildx build . \
+#              --platform "linux/$cur_arch" \
+#              --output "type=docker,dest=${{ github.repository_name }}-$TAG_NAME-$cur_arch.tar"
           done
 
       - name: Create Release
