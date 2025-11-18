@@ -41,10 +41,10 @@ jobs:
           TAG_NAME=$(git describe --exact-match)
           git tag --list --format='%(contents)' "$TAG_NAME" > RELEASE-NOTES
 
-          for arch in $ARCH; do
+          for cur_arch in $ARCH; do
             docker build . \
-              --platform "linux/$ARCH" \
-              --output "type=docker,dest=${{ github.repository_name }}-$TAG_NAME-$ARCH.tar"
+              --platform "linux/$cur_arch" \
+              --output "type=docker,dest=${{ github.repository_name }}-$TAG_NAME-$cur_arch.tar"
           done
 
       - name: Create Release
