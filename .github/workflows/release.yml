@@ -51,4 +51,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           body_path: RELEASE-NOTES
-          files: *.tar
+          files: "*.tar"
