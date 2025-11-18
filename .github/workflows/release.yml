@@ -45,7 +45,7 @@ jobs:
 
           for cur_arch in $ARCH; do
             docker build . --platform linux/$cur_arch -t $REPO_NAME
-            docker save ${{ github.repository_name }} -o "$REPO_NAME-$TAG_NAME-$cur_arch.tar"
+            docker save $REPO_NAME -o "$REPO_NAME-$TAG_NAME-$cur_arch.tar"
           done
 
       - name: Create Release
