@@ -6,7 +6,7 @@ on:
       - 'v*.*.*'
 
 env:
-  ARCH: ["amd64", "arm64"]
+  ARCH: amd64 arm64
 
 permissions:
   contents: write
