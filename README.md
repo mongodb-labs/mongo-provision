@@ -3,16 +3,13 @@
 This tool provisions a MongoDB cluster for testing. All nodes of the cluster
 run in a single container.
 
-## Example Usage
+## Example Usage - Docker Hub
 ```
-# Build the container:
-docker build . -t mongo-provision
-
 # Start a 3-node replica set:
-docker run -it --rm -p27017-27019:27017-27019 mongo-provision 8.0 --replicaset --nodes 3
+docker run -it --rm -p27017-27019:27017-27019 felipegasper298/mongo-provision 8.0 --replicaset --nodes 3
 
 # … or, for a sharded cluster:
-docker run -it --rm -p27017:27017 mongo-provision 8.0 --replicaset --sharded 3 --nodes 3
+docker run -it --rm -p27017:27017 felipegasper298/mongo-provision 8.0 --replicaset --sharded 3 --nodes 3
 ```
 The above will hang indefinitely until you kill it, e.g., via CTRL-C.
 
@@ -25,6 +22,14 @@ mongosh mongodb://localhost:27017,localhost:27018,localhost:27019
 mongosh mongodb://localhost:27017
 ```
 … and you’re in!
+
+## Example Usage - Local
+Build the container:
+```
+docker build . -t mongo-provision
+```
+… then it’s the same as the above but with a local `mongo-provision` image
+instead of `felipegasper298/mongo-provision`.
 
 ## Syntax
 The arguments to the container are:
