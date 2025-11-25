@@ -21,4 +21,6 @@ ENV PATH=$PATH:/root/.local/bin
 
 COPY entrypoint.sh .
 
+COPY print_connstrs.py .
+
 ENTRYPOINT ["./entrypoint.sh"]

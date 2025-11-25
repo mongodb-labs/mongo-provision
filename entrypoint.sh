@@ -14,5 +14,8 @@ shift
 echo "Starting MongoDB cluster …"
 mlaunch "$@" --bind_ip_all
 
+echo
+./print_connstrs.py < data/.mlaunch_startup
+
 # Hang forever:
 tail -f /dev/null
