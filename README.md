@@ -41,6 +41,15 @@ This container stores its state (e.g., mongod data files) under `/data`.
 To introspect that state outside the container, mount a volume to that path
 in the container.
 
+## Readiness checks
+To check whether the cluster is ready, `exec` into the container and check if the
+`ready` file exists. For example:
+```
+while ! docker exec my-container-name [ -e ready ]; do
+    echo "Still waiting for cluster to be ready …"
+done
+```
+
 ## Caveats
 - You **MUST** anticipate the bound ports and export them.
 - The container’s platform will dictate server version availability. For example,
