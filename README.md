@@ -50,6 +50,9 @@ while ! docker exec my-container-name [ -e ready ]; do
     sleep 1
 done
 ```
+The `ready` file is a JSON file with the following data points:
+- `connection_string` (mongoses for sharded clusters)
+- `shards`: a dictionary of shard name to connection string
 
 ## Caveats
 - You **MUST** anticipate the bound ports and export them.
