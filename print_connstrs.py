@@ -73,9 +73,13 @@ def main():
 
     hostname = parsed_args.get("hostname", "localhost")
     base_port = int(parsed_args.get("port", 27017))
-    nodes = int(parsed_args.get("nodes", 1))
     sharded_field = parsed_args.get("sharded")
     mongos_count = int(parsed_args.get("mongos", 0))
+
+    if bool(parsed_args.get("single")):
+        nodes = 1
+    else:
+        nodes = int(parsed_args.get("nodes", 1))
 
     try:
         is_sharded, shard_names, shard_count = parse_sharded(sharded_field)

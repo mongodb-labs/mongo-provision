@@ -47,6 +47,7 @@ To check whether the cluster is ready, `exec` into the container and check if th
 ```
 while ! docker exec my-container-name [ -e ready ]; do
     echo "Still waiting for cluster to be ready …"
+    sleep 1
 done
 ```
 
