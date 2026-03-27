@@ -32,7 +32,7 @@ jobs:
           retention-days: 1
 
   test:
-    name: "${{ matrix.topology }} / ${{ matrix.version }}"
+    name: "${{ matrix.topology.name }} / ${{ matrix.version }}"
     needs: build
     runs-on: ubuntu-latest
     strategy:
@@ -75,7 +75,7 @@ jobs:
       - name: Test
         env:
           EXPECTED_VERSION: ${{ matrix.version }}
-          TOPOLOGY: ${{ matrix.topology }}
+          TOPOLOGY: ${{ matrix.topology.name }}
         run: |
           set -euo pipefail
 
@@ -84,7 +84,7 @@ jobs:
 
           docker run -d --name mongo-test \
             -p 27017-27099:27017-27099 \
-            mongo-provision "$EXPECTED_VERSION" ${{ matrix.mongo_args }}
+            mongo-provision "$EXPECTED_VERSION" ${{ matrix.topology.mongo_args }}
 
           echo "Waiting for cluster to be ready …"
           timeout 5m bash -c '
