@@ -55,14 +55,6 @@ jobs:
             ready_timeout: 10m
 
     steps:
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: mongo-provision-image
-
-      - name: Load Docker image
-        run: docker load < mongo-provision.tar.gz
-
       - name: Install mongosh
         run: |
           set -euo pipefail
@@ -72,18 +64,20 @@ jobs:
 
           wget -qO- https://www.mongodb.org/static/pgp/server-8.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-8.0.asc
 
-          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/8.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.2.list
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
 
           sudo apt-get update
-          sudoapt-get install -y mongodb-mongosh@2.5.6
-
-          #if [ "${{ matrix.version }}" = "4.0" ]; then
-          #  npm install -g mongosh@2.5.6
-          #else
-          #  npm install -g mongosh
-          #fi
+          sudo apt-get install -y mongodb-mongosh=2.5.6
 
           mongosh --version
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mongo-provision-image
+
+      - name: Load Docker image
+        run: docker load < mongo-provision.tar.gz
 
       - name: Test
         env:
