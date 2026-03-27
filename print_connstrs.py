@@ -110,7 +110,7 @@ def main():
     if use_json:
         print(json.dumps(result, indent=2))
     else:
-        print(f"Main connection string:\n{result['main_connection_string']}\n")
+        print(f"Main connection string:\n{result['connection_string']}\n")
         print("Per-shard connection strings:")
         for name, conn in result["shards"].items():
             print(f"{name}: {conn}")

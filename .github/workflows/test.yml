@@ -130,7 +130,7 @@ jobs:
           trap cleanup EXIT
 
           docker run -d --name mongo-test \
-            -p 27017-27019:27017-27019 \
+            --network host \
             mongo-provision "$EXPECTED_VERSION" --replicaset --nodes 3 --hostname localhost
 
           echo "Waiting for cluster to be ready…"
@@ -206,9 +206,11 @@ jobs:
           cleanup() { docker rm -f mongo-test 2>/dev/null || true; }
           trap cleanup EXIT
 
-          # Only the mongos port (27017) needs to be exposed; shard ports are internal.
+          # --network host: container shares the host network namespace, so
+          # localhost:PORT works from host mongosh without port mapping, and
+          # RS members configured with --hostname localhost are always reachable.
           docker run -d --name mongo-test \
-            -p 27017:27017 \
+            --network host \
             mongo-provision "$EXPECTED_VERSION" --replicaset --sharded 2 --nodes 3 --hostname localhost
 
           echo "Waiting for cluster to be ready…"
