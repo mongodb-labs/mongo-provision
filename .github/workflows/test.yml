@@ -86,7 +86,8 @@ jobs:
             done
           '
 
-          echo "Server is ready. Connecting …"
+          docker logs mongo-test
+
           CONN=$(docker exec mongo-test cat ready | jq -r .connection_string)
 
           mongosh "$CONN" --eval '
@@ -162,8 +163,9 @@ jobs:
           docker logs mongo-test
 
           CONN=$(docker exec mongo-test cat ready | jq -r ".connection_string")
-          echo "Server is ready. Connecting to $CONN …"
 
+          CONN=mongodb://localhost:27017
+          
           mongosh "$CONN" --eval '
               const expected = process.env.EXPECTED_VERSION;
               const im = db.adminCommand({ isMaster: 1 });
@@ -245,7 +247,8 @@ jobs:
             done
           '
 
-          echo "Server is ready. Connecting …"
+          docker logs mongo-test
+
           CONN=$(docker exec mongo-test cat ready | jq -r .connection_string)
 
           mongosh "$CONN" --eval '
