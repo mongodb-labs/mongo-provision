@@ -155,6 +155,8 @@ jobs:
             done
           '
 
+          docker logs mongo-test
+
           CONN=$(docker exec mongo-test cat ready | jq -r ".connection_string")
           echo "Server is ready. Connecting to $CONN …"
 
