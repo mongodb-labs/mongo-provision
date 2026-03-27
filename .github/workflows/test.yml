@@ -250,6 +250,8 @@ jobs:
 
           CONN=$(docker exec mongo-test cat ready | jq -r .connection_string)
 
+          echo "Connecting to $CONN …"
+
           mongosh "$CONN" --eval '
             const expected = process.env.EXPECTED_VERSION;
             const im = db.adminCommand({ isMaster: 1 });
