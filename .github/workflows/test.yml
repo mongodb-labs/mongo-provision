@@ -127,10 +127,10 @@ jobs:
           echo "Waiting for cluster to be ready…"
           timeout 5m bash -c 'until docker exec mongo-test [ -e ready ]; do sleep 2; done'
 
-          echo "Server is ready. Connecting …"
-          CONN=$(docker exec mongo-test cat ready | jq -r .connection_string)
+          CONN=$(docker exec mongo-test cat ready | jq -r ".connection_string")
+          echo "Server is ready. Connecting to $CONN …"
 
-          mongosh --quiet "$CONN" --eval '
+          mongosh "$CONN" --eval '
               const expected = process.env.EXPECTED_VERSION;
               const im = db.adminCommand({ isMaster: 1 });
               const ver = db.version();
