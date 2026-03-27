@@ -31,14 +31,28 @@ jobs:
           path: mongo-provision.tar.gz
           retention-days: 1
 
-  test-single:
-    name: "single / ${{ matrix.version }}"
+  test:
+    name: "${{ matrix.topology }} / ${{ matrix.version }}"
     needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         version: ["4.0", "4.2", "4.4", "5.0", "6.0", "7.0", "8.0"]
+        topology: [single, replset-3, sharded-2x3]
+        include:
+          - topology: single
+            docker_run: -p 27017:27017
+            mongo_args: --single
+            ready_timeout: 5m
+          - topology: replset-3
+            docker_run: --network host
+            mongo_args: --replicaset --nodes 3 --hostname localhost
+            ready_timeout: 5m
+          - topology: sharded-2x3
+            docker_run: -p 27017:27017
+            mongo_args: --replicaset --sharded 2 --nodes 3
+            ready_timeout: 10m
 
     steps:
       - name: Download image artifact
@@ -51,31 +65,41 @@ jobs:
 
       - name: Install mongosh
         run: |
-          if [ "${{ matrix.version }}" = "4.0" ]; then
-            npm install -g mongosh@2.5.6
-          else
-            npm install -g mongosh
-          fi
+          apt-get update
+          apt-get install -y gnupg
+
+          wget -qO- https://www.mongodb.org/static/pgp/server-8.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-8.0.asc
+
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/8.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.2.list
+
+          apt-get update
+
+          sudo apt-get install -y mongodb-mongosh@2.5.6
+
+          #if [ "${{ matrix.version }}" = "4.0" ]; then
+          #  npm install -g mongosh@2.5.6
+          #else
+          #  npm install -g mongosh
+          #fi
 
           mongosh --version
 
       - name: Test
         env:
           EXPECTED_VERSION: ${{ matrix.version }}
+          TOPOLOGY: ${{ matrix.topology }}
         run: |
           set -euo pipefail
 
           cleanup() { docker rm -f mongo-test 2>/dev/null || true; }
           trap cleanup EXIT
 
-          echo "Starting container …"
-
           docker run -d --name mongo-test \
-            -p 27017:27017 \
-            mongo-provision "$EXPECTED_VERSION" --single
+            ${{ matrix.docker_run }} \
+            mongo-provision "$EXPECTED_VERSION" ${{ matrix.mongo_args }}
 
           echo "Waiting for cluster to be ready …"
-          timeout 5m bash -c '
+          timeout ${{ matrix.ready_timeout }} bash -c '
             until docker exec mongo-test [ -e ready ] 2>/dev/null; do
               if ! docker ps -q --filter name=mongo-test --filter status=running | grep -q .; then
                 echo "Container has exited:" >&2
@@ -89,103 +113,41 @@ jobs:
           docker logs mongo-test
 
           CONN=$(docker exec mongo-test cat ready | jq -r .connection_string)
+          echo "Server is ready. Connection string: $CONN"
 
-          mongosh "$CONN" --eval '
-            const expected = process.env.EXPECTED_VERSION;
-            const im = db.adminCommand({ isMaster: 1 });
-            const ver = db.version();
+          if [ "$TOPOLOGY" = single ]; then
 
-            assert(
-              ver.startsWith(expected),
-              "Version mismatch: expected " + expected + ".x, got " + ver
-            );
-            assert(
-              !im.setName,
-              "Expected standalone (no replica set), got setName=" + im.setName
-            );
-
-            print("PASS: version=" + ver + ", standalone");
-          '
-
-  test-replset:
-    name: "replset-3 / ${{ matrix.version }}"
-    needs: build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        version: ["4.0", "4.2", "4.4", "5.0", "6.0", "7.0", "8.0"]
-
-    steps:
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: mongo-provision-image
-
-      - name: Load Docker image
-        run: docker load < mongo-provision.tar.gz
-
-      - name: Install mongosh
-        run: |
-          if [ "${{ matrix.version }}" = "4.0" ]; then
-            npm install -g mongosh@2.5.6
-          else
-            npm install -g mongosh
-          fi
-
-          mongosh --version
-
-      - name: Test
-        env:
-          EXPECTED_VERSION: ${{ matrix.version }}
-        run: |
-          set -euo pipefail
-
-          cleanup() { docker rm -f mongo-test 2>/dev/null || true; }
-          trap cleanup EXIT
-
-          docker run -d --name mongo-test \
-            --network host \
-            mongo-provision "$EXPECTED_VERSION" --replicaset --nodes 3 --hostname localhost
-
-          echo "Waiting for cluster to be ready …"
-          timeout 5m bash -c '
-            until docker exec mongo-test [ -e ready ] 2>/dev/null; do
-              if ! docker ps -q --filter name=mongo-test --filter status=running | grep -q .; then
-                echo "Container has exited:" >&2
-                docker logs mongo-test >&2
-                exit 1
-              fi
-              sleep 2
-            done
-          '
-
-          docker logs mongo-test
-
-          CONN=$(docker exec mongo-test cat ready | jq -r ".connection_string")
-
-          CONN=mongodb://localhost:27017
-
-          mongosh "$CONN" --eval '
+            mongosh "$CONN" --eval '
               const expected = process.env.EXPECTED_VERSION;
               const im = db.adminCommand({ isMaster: 1 });
               const ver = db.version();
-
               assert(
                 ver.startsWith(expected),
                 "Version mismatch: expected " + expected + ".x, got " + ver
               );
               assert(
-                im.setName,
-                "Expected a replica set, got standalone"
+                !im.setName,
+                "Expected standalone, got setName=" + im.setName
               );
+              print("PASS: version=" + ver + ", standalone");
+            '
 
+          elif [ "$TOPOLOGY" = replset-3 ]; then
+
+            mongosh mongodb://localhost:27017 --eval '
+              const expected = process.env.EXPECTED_VERSION;
+              const im = db.adminCommand({ isMaster: 1 });
+              const ver = db.version();
+              assert(
+                ver.startsWith(expected),
+                "Version mismatch: expected " + expected + ".x, got " + ver
+              );
+              assert(im.setName, "Expected a replica set, got standalone");
               const status = db.adminCommand({ replSetGetStatus: 1 });
               assert(
                 status.members.length === 3,
                 "Expected 3 nodes, got " + status.members.length
               );
-
               print(
                 "PASS: version=" + ver +
                 ", replica set \"" + im.setName + "\"" +
@@ -193,101 +155,40 @@ jobs:
               );
             '
 
-  test-sharded:
-    name: "sharded-2x3 / ${{ matrix.version }}"
-    needs: build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        version: ["4.0", "4.2", "4.4", "5.0", "6.0", "7.0", "8.0"]
+          elif [ "$TOPOLOGY" = sharded-2x3 ]; then
 
-    steps:
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: mongo-provision-image
+            mongosh "$CONN" --eval '
+              const expected = process.env.EXPECTED_VERSION;
+              const im = db.adminCommand({ isMaster: 1 });
+              const ver = db.version();
+              assert(
+                ver.startsWith(expected),
+                "Version mismatch: expected " + expected + ".x, got " + ver
+              );
+              assert(
+                im.msg === "isdbgrid",
+                "Expected mongos (isdbgrid), got: " + JSON.stringify(im)
+              );
+              const listShards = db.adminCommand({ listShards: 1 });
+              assert(
+                listShards.shards.length === 2,
+                "Expected 2 shards, got " + listShards.shards.length
+              );
+              const firstShardHost = listShards.shards[0].host;
+              const hostsStr = firstShardHost.includes("/")
+                ? firstShardHost.split("/")[1]
+                : firstShardHost;
+              const nodeCount = hostsStr.split(",").length;
+              assert(
+                nodeCount === 3,
+                "Expected 3 nodes/shard, got " + nodeCount +
+                " (host: " + firstShardHost + ")"
+              );
+              print(
+                "PASS: version=" + ver +
+                ", " + listShards.shards.length + " shards" +
+                ", " + nodeCount + " nodes/shard"
+              );
+            '
 
-      - name: Load Docker image
-        run: docker load < mongo-provision.tar.gz
-
-      - name: Install mongosh
-        run: |
-          if [ "${{ matrix.version }}" = "4.0" ]; then
-            npm install -g mongosh@2.5.6
-          else
-            npm install -g mongosh
           fi
-
-          mongosh --version
-
-      - name: Test
-        env:
-          EXPECTED_VERSION: ${{ matrix.version }}
-        run: |
-          set -euo pipefail
-
-          cleanup() { docker rm -f mongo-test 2>/dev/null || true; }
-          trap cleanup EXIT
-
-          docker run -d --name mongo-test \
-            -p 27017:27017 \
-            mongo-provision "$EXPECTED_VERSION" --replicaset --sharded 2 --nodes 3
-
-          echo "Waiting for cluster to be ready …"
-          timeout 10m bash -c '
-            until docker exec mongo-test [ -e ready ] 2>/dev/null; do
-              if ! docker ps -q --filter name=mongo-test --filter status=running | grep -q .; then
-                echo "Container has exited:" >&2
-                docker logs mongo-test >&2
-                exit 1
-              fi
-              sleep 2
-            done
-          '
-
-          docker logs mongo-test
-
-          CONN=$(docker exec mongo-test cat ready | jq -r .connection_string)
-
-          echo "Connecting to $CONN …"
-          mongosh --version
-
-          mongosh "$CONN" --eval '
-            const expected = process.env.EXPECTED_VERSION;
-            const im = db.adminCommand({ isMaster: 1 });
-            const ver = db.version();
-
-            assert(
-              ver.startsWith(expected),
-              "Version mismatch: expected " + expected + ".x, got " + ver
-            );
-            assert(
-              im.msg === "isdbgrid",
-              "Expected mongos (isdbgrid), got: " + JSON.stringify(im)
-            );
-
-            const listShards = db.adminCommand({ listShards: 1 });
-            assert(
-              listShards.shards.length === 2,
-              "Expected 2 shards, got " + listShards.shards.length
-            );
-
-            // Shard host strings look like "rsName/host:port,host:port,host:port".
-            // Count the members in the first shard to verify nodes-per-shard.
-            const firstShardHost = listShards.shards[0].host;
-            const hostsStr = firstShardHost.includes("/")
-              ? firstShardHost.split("/")[1]
-              : firstShardHost;
-            const nodeCount = hostsStr.split(",").length;
-            assert(
-              nodeCount === 3,
-              "Expected 3 nodes/shard, got " + nodeCount + " (host: " + firstShardHost + ")"
-            );
-
-            print(
-              "PASS: version=" + ver +
-              ", " + listShards.shards.length + " shards" +
-              ", " + nodeCount + " nodes/shard"
-            );
-          '

@@ -58,7 +58,7 @@ The `ready` file is a JSON file with the following data points:
 - You **MUST** anticipate the bound ports and export them.
 - The container’s platform will dictate server version availability. For example,
   you can’t create pre-v5 clusters on Linux/ARM64 because no official builds were
-  made for that version/platform combination.
+  made for that version/platform combination. (Try `--platform linux/amd64` on multi-platform container engines.)
 
 ## Acknowledgements
 
