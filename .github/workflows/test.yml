@@ -251,6 +251,7 @@ jobs:
           CONN=$(docker exec mongo-test cat ready | jq -r .connection_string)
 
           echo "Connecting to $CONN …"
+          mongosh --version
 
           mongosh "$CONN" --eval '
             const expected = process.env.EXPECTED_VERSION;
