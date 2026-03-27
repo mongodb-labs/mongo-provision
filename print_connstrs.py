@@ -77,7 +77,12 @@ def main():
     # Logic for Replica Set (Non-sharded)
     if not is_sharded:
         hosts = build_hosts(hostname, base_port, nodes)
-        conn_str = f"mongodb://{hosts}"
+        is_single = bool(parsed_args.get("single"))
+        if is_single:
+            conn_str = f"mongodb://{hosts}"
+        else:
+            rs_name = parsed_args.get("name", "replset")
+            conn_str = f"mongodb://{hosts}/?replicaSet={rs_name}"
         if use_json:
             print(json.dumps({"connection_string": conn_str}, indent=2))
         else:
