@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Build Docker image
-        run: docker buildx build . --platform linux/amd64 --tag mongo-provision
+        run: docker buildx build . --platform linux/amd64 --tag mongo-provision --load
 
       - name: Export image
         run: docker save mongo-provision | gzip > mongo-provision.tar.gz
@@ -39,13 +39,12 @@ jobs:
       fail-fast: false
       matrix:
         version: ["4.0", "4.2", "4.4", "5.0", "6.0", "7.0", "8.0"]
-        topology: [single, replset-3, sharded-2x3]
-        include:
-          - topology: single
+        topology:
+          - name: single
             mongo_args: --single
-          - topology: replset-3
+          - name: replset-3
             mongo_args: --replicaset --nodes 3 --hostname localhost
-          - topology: sharded-2x3
+          - name: sharded-2x3
             mongo_args: --replicaset --sharded 2 --nodes 3
 
     steps:
