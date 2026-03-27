@@ -57,6 +57,8 @@ jobs:
             npm install -g mongosh
           fi
 
+          mongosh --version
+
       - name: Test
         env:
           EXPECTED_VERSION: ${{ matrix.version }}
@@ -130,6 +132,8 @@ jobs:
             npm install -g mongosh
           fi
 
+          mongosh --version
+
       - name: Test
         env:
           EXPECTED_VERSION: ${{ matrix.version }}
@@ -160,7 +164,7 @@ jobs:
           CONN=$(docker exec mongo-test cat ready | jq -r ".connection_string")
           echo "Server is ready. Connecting to $CONN …"
 
-          mongosh "$CONN" --eval '
+          mongosh --quiet --serverSelectionTimeoutMS 30000 "$CONN" --eval '
               const expected = process.env.EXPECTED_VERSION;
               const im = db.adminCommand({ isMaster: 1 });
               const ver = db.version();
@@ -213,6 +217,8 @@ jobs:
           else
             npm install -g mongosh
           fi
+
+          mongosh --version
 
       - name: Test
         env:
