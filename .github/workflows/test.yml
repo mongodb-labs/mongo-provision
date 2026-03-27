@@ -50,7 +50,12 @@ jobs:
         run: docker load < mongo-provision.tar.gz
 
       - name: Install mongosh
-        run: npm install -g mongosh
+        run: |
+          if [ "${{ matrix.version }}" = "4.0" ]; then
+            npm install -g mongosh@2.5.6
+          else
+            npm install -g mongosh
+          fi
 
       - name: Test
         env:
@@ -118,7 +123,12 @@ jobs:
         run: docker load < mongo-provision.tar.gz
 
       - name: Install mongosh
-        run: npm install -g mongosh
+        run: |
+          if [ "${{ matrix.version }}" = "4.0" ]; then
+            npm install -g mongosh@2.5.6
+          else
+            npm install -g mongosh
+          fi
 
       - name: Test
         env:
@@ -195,7 +205,12 @@ jobs:
         run: docker load < mongo-provision.tar.gz
 
       - name: Install mongosh
-        run: npm install -g mongosh
+        run: |
+          if [ "${{ matrix.version }}" = "4.0" ]; then
+            npm install -g mongosh@2.5.6
+          else
+            npm install -g mongosh
+          fi
 
       - name: Test
         env:
