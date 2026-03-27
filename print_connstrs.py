@@ -61,7 +61,8 @@ def main():
     sharded_field = parsed_args.get("sharded")
     mongos_count = int(parsed_args.get("mongos", 0))
 
-    if bool(parsed_args.get("single")):
+    is_single = bool(parsed_args.get("single"))
+    if is_single:
         nodes = 1
     else:
         nodes = int(parsed_args.get("nodes", 1))
@@ -77,7 +78,11 @@ def main():
     # Logic for Replica Set (Non-sharded)
     if not is_sharded:
         hosts = build_hosts(hostname, base_port, nodes)
-        conn_str = f"mongodb://{hosts}"
+        if is_single:
+            conn_str = f"mongodb://{hosts}"
+        else:
+            rs_name = parsed_args.get("name", "replset")
+            conn_str = f"mongodb://{hosts}/?replicaSet={rs_name}"
         if use_json:
             print(json.dumps({"connection_string": conn_str}, indent=2))
         else:
@@ -105,7 +110,7 @@ def main():
     if use_json:
         print(json.dumps(result, indent=2))
     else:
-        print(f"Main connection string:\n{result['main_connection_string']}\n")
+        print(f"Main connection string:\n{result['connection_string']}\n")
         print("Per-shard connection strings:")
         for name, conn in result["shards"].items():
             print(f"{name}: {conn}")
