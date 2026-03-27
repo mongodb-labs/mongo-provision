@@ -42,17 +42,11 @@ jobs:
         topology: [single, replset-3, sharded-2x3]
         include:
           - topology: single
-            docker_run: -p 27017:27017
             mongo_args: --single
-            ready_timeout: 5m
           - topology: replset-3
-            docker_run: --network host
             mongo_args: --replicaset --nodes 3 --hostname localhost
-            ready_timeout: 5m
           - topology: sharded-2x3
-            docker_run: -p 27017:27017
             mongo_args: --replicaset --sharded 2 --nodes 3
-            ready_timeout: 10m
 
     steps:
       - name: Install mongosh
@@ -90,11 +84,11 @@ jobs:
           trap cleanup EXIT
 
           docker run -d --name mongo-test \
-            ${{ matrix.docker_run }} \
+            -p 27017-27099:27017-27099 \
             mongo-provision "$EXPECTED_VERSION" ${{ matrix.mongo_args }}
 
           echo "Waiting for cluster to be ready …"
-          timeout ${{ matrix.ready_timeout }} bash -c '
+          timeout 5m bash -c '
             until docker exec mongo-test [ -e ready ] 2>/dev/null; do
               if ! docker ps -q --filter name=mongo-test --filter status=running | grep -q .; then
                 echo "Container has exited:" >&2
