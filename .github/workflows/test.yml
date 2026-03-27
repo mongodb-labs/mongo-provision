@@ -74,6 +74,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: mongo-provision-image
+          path: .
 
       - name: Load Docker image
         run: gunzip -c mongo-provision.tar.gz | docker load
