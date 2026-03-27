@@ -1,3 +1,5 @@
+name: Test
+
 on:
   push:
     branches:
@@ -8,51 +10,224 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: test
-
-    strategy:
-      fail-fast: false
-      matrix:
-        version:
-          - 4.0
-          - 4.2
-          - 4.4
-          - 5.0
-          - 6.0
-          - 7.0
-          - 8.0
-
+  build:
+    name: Build image
     runs-on: ubuntu-latest
 
     steps:
-      - run: uname -a
-      - run: ldconfig -p
-      - run: lsb_release -a
-
-      - name: install mongosh
-        run: npm install -g mongosh
-
       - name: Check out repository
         uses: actions/checkout@v4
 
-#      - name: Set up QEMU
-#        if: ${{ matrix.arch != 'amd64' }}
-#        uses: docker/setup-qemu-action@v2
-#
-#      - name: Set up Docker Buildx
-#        if: ${{ matrix.arch != 'amd64' }}
-#        uses: docker/setup-buildx-action@v2
+      - name: Build Docker image
+        run: docker buildx build . --platform linux/amd64 --tag mongo-provision
 
-      - name: build
-        #run: docker buildx build . --platform linux/${{matrix.arch}} --output type=docker,dest=$arch
-        run: docker buildx build . --tag mongo-provision
+      - name: Export image
+        run: docker save mongo-provision | gzip > mongo-provision.tar.gz
 
-      - name: test
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mongo-provision-image
+          path: mongo-provision.tar.gz
+          retention-days: 1
+
+  test-single:
+    name: "single / ${{ matrix.version }}"
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["4.0", "4.2", "4.4", "5.0", "6.0", "7.0", "8.0"]
+
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mongo-provision-image
+
+      - name: Load Docker image
+        run: docker load < mongo-provision.tar.gz
+
+      - name: Install mongosh
+        run: npm install -g mongosh
+
+      - name: Test
+        env:
+          EXPECTED_VERSION: ${{ matrix.version }}
         run: |
-            set -o errexit
+          set -euo pipefail
 
-            docker run -i --rm -p 27017:27017 mongo-provision 6.0 --single &
-            mpid="$!"
+          cleanup() { docker rm -f mongo-test 2>/dev/null || true; }
+          trap cleanup EXIT
 
-            timeout 1m sh -c "while ! mongosh --eval 'show dbs'; do sleep 1; done"
+          docker run -d --name mongo-test \
+            -p 27017:27017 \
+            mongo-provision "$EXPECTED_VERSION" --single
+
+          echo "Waiting for cluster to be ready…"
+          timeout 5m bash -c 'until docker exec mongo-test [ -e ready ]; do sleep 2; done'
+
+          mongosh --quiet mongodb://localhost:27017 --eval '
+            const expected = process.env.EXPECTED_VERSION;
+            const im = db.adminCommand({ isMaster: 1 });
+            const ver = db.version();
+
+            assert(
+              ver.startsWith(expected),
+              "Version mismatch: expected " + expected + ".x, got " + ver
+            );
+            assert(
+              !im.setName,
+              "Expected standalone (no replica set), got setName=" + im.setName
+            );
+
+            print("PASS: version=" + ver + ", standalone");
+          '
+
+  test-replset:
+    name: "replset-3 / ${{ matrix.version }}"
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["4.0", "4.2", "4.4", "5.0", "6.0", "7.0", "8.0"]
+
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mongo-provision-image
+
+      - name: Load Docker image
+        run: docker load < mongo-provision.tar.gz
+
+      - name: Install mongosh
+        run: npm install -g mongosh
+
+      - name: Test
+        env:
+          EXPECTED_VERSION: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+
+          cleanup() { docker rm -f mongo-test 2>/dev/null || true; }
+          trap cleanup EXIT
+
+          docker run -d --name mongo-test \
+            -p 27017-27019:27017-27019 \
+            mongo-provision "$EXPECTED_VERSION" --replicaset --nodes 3
+
+          echo "Waiting for cluster to be ready…"
+          timeout 5m bash -c 'until docker exec mongo-test [ -e ready ]; do sleep 2; done'
+
+          mongosh --quiet \
+            "mongodb://localhost:27017,localhost:27018,localhost:27019" \
+            --eval '
+              const expected = process.env.EXPECTED_VERSION;
+              const im = db.adminCommand({ isMaster: 1 });
+              const ver = db.version();
+
+              assert(
+                ver.startsWith(expected),
+                "Version mismatch: expected " + expected + ".x, got " + ver
+              );
+              assert(
+                im.setName,
+                "Expected a replica set, got standalone"
+              );
+
+              const status = db.adminCommand({ replSetGetStatus: 1 });
+              assert.eq(
+                status.members.length,
+                3,
+                "Expected 3 nodes, got " + status.members.length
+              );
+
+              print(
+                "PASS: version=" + ver +
+                ", replica set \"" + im.setName + "\"" +
+                ", " + status.members.length + " nodes"
+              );
+            '
+
+  test-sharded:
+    name: "sharded-2x3 / ${{ matrix.version }}"
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["4.0", "4.2", "4.4", "5.0", "6.0", "7.0", "8.0"]
+
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mongo-provision-image
+
+      - name: Load Docker image
+        run: docker load < mongo-provision.tar.gz
+
+      - name: Install mongosh
+        run: npm install -g mongosh
+
+      - name: Test
+        env:
+          EXPECTED_VERSION: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+
+          cleanup() { docker rm -f mongo-test 2>/dev/null || true; }
+          trap cleanup EXIT
+
+          # Only the mongos port (27017) needs to be exposed; shard ports are internal.
+          docker run -d --name mongo-test \
+            -p 27017:27017 \
+            mongo-provision "$EXPECTED_VERSION" --replicaset --sharded 2 --nodes 3
+
+          echo "Waiting for cluster to be ready…"
+          timeout 10m bash -c 'until docker exec mongo-test [ -e ready ]; do sleep 2; done'
+
+          mongosh --quiet mongodb://localhost:27017 --eval '
+            const expected = process.env.EXPECTED_VERSION;
+            const im = db.adminCommand({ isMaster: 1 });
+            const ver = db.version();
+
+            assert(
+              ver.startsWith(expected),
+              "Version mismatch: expected " + expected + ".x, got " + ver
+            );
+            assert.eq(
+              im.msg,
+              "isdbgrid",
+              "Expected mongos (isdbgrid), got: " + tojson(im)
+            );
+
+            const listShards = db.adminCommand({ listShards: 1 });
+            assert.eq(
+              listShards.shards.length,
+              2,
+              "Expected 2 shards, got " + listShards.shards.length
+            );
+
+            // Shard host strings look like "rsName/host:port,host:port,host:port".
+            // Count the members in the first shard to verify nodes-per-shard.
+            const firstShardHost = listShards.shards[0].host;
+            const hostsStr = firstShardHost.includes("/")
+              ? firstShardHost.split("/")[1]
+              : firstShardHost;
+            const nodeCount = hostsStr.split(",").length;
+            assert.eq(
+              nodeCount,
+              3,
+              "Expected 3 nodes/shard, got " + nodeCount + " (host: " + firstShardHost + ")"
+            );
+
+            print(
+              "PASS: version=" + ver +
+              ", " + listShards.shards.length + " shards" +
+              ", " + nodeCount + " nodes/shard"
+            );
+          '
