@@ -61,7 +61,8 @@ def main():
     sharded_field = parsed_args.get("sharded")
     mongos_count = int(parsed_args.get("mongos", 0))
 
-    if bool(parsed_args.get("single")):
+    is_single = bool(parsed_args.get("single"))
+    if is_single:
         nodes = 1
     else:
         nodes = int(parsed_args.get("nodes", 1))
@@ -77,7 +78,6 @@ def main():
     # Logic for Replica Set (Non-sharded)
     if not is_sharded:
         hosts = build_hosts(hostname, base_port, nodes)
-        is_single = bool(parsed_args.get("single"))
         if is_single:
             conn_str = f"mongodb://{hosts}"
         else:
