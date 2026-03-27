@@ -70,7 +70,7 @@ jobs:
           name: mongo-provision-image
 
       - name: Load Docker image
-        run: docker load < mongo-provision.tar.gz
+        run: gunzip -c mongo-provision.tar.gz | docker load
 
       - name: Test
         env:
