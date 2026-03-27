@@ -68,7 +68,16 @@ jobs:
             mongo-provision "$EXPECTED_VERSION" --single
 
           echo "Waiting for cluster to be ready …"
-          timeout 5m bash -c 'until docker exec mongo-test [ -e ready ]; do sleep 2; done'
+          timeout 5m bash -c '
+            until docker exec mongo-test [ -e ready ] 2>/dev/null; do
+              if ! docker ps -q --filter name=mongo-test --filter status=running | grep -q .; then
+                echo "Container has exited:" >&2
+                docker logs mongo-test >&2
+                exit 1
+              fi
+              sleep 2
+            done
+          '
 
           echo "Server is ready. Connecting …"
           CONN=$(docker exec mongo-test cat ready | jq -r .connection_string)
@@ -122,10 +131,19 @@ jobs:
 
           docker run -d --name mongo-test \
             -p 27017-27019:27017-27019 \
-            mongo-provision "$EXPECTED_VERSION" --replicaset --nodes 3
+            mongo-provision "$EXPECTED_VERSION" --replicaset --nodes 3 --hostname localhost
 
           echo "Waiting for cluster to be ready…"
-          timeout 5m bash -c 'until docker exec mongo-test [ -e ready ]; do sleep 2; done'
+          timeout 5m bash -c '
+            until docker exec mongo-test [ -e ready ] 2>/dev/null; do
+              if ! docker ps -q --filter name=mongo-test --filter status=running | grep -q .; then
+                echo "Container has exited:" >&2
+                docker logs mongo-test >&2
+                exit 1
+              fi
+              sleep 2
+            done
+          '
 
           CONN=$(docker exec mongo-test cat ready | jq -r ".connection_string")
           echo "Server is ready. Connecting to $CONN …"
@@ -191,10 +209,19 @@ jobs:
           # Only the mongos port (27017) needs to be exposed; shard ports are internal.
           docker run -d --name mongo-test \
             -p 27017:27017 \
-            mongo-provision "$EXPECTED_VERSION" --replicaset --sharded 2 --nodes 3
+            mongo-provision "$EXPECTED_VERSION" --replicaset --sharded 2 --nodes 3 --hostname localhost
 
           echo "Waiting for cluster to be ready…"
-          timeout 10m bash -c 'until docker exec mongo-test [ -e ready ]; do sleep 2; done'
+          timeout 10m bash -c '
+            until docker exec mongo-test [ -e ready ] 2>/dev/null; do
+              if ! docker ps -q --filter name=mongo-test --filter status=running | grep -q .; then
+                echo "Container has exited:" >&2
+                docker logs mongo-test >&2
+                exit 1
+              fi
+              sleep 2
+            done
+          '
 
           echo "Server is ready. Connecting …"
           CONN=$(docker exec mongo-test cat ready | jq -r .connection_string)
