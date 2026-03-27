@@ -255,7 +255,7 @@ jobs:
             assert.eq(
               im.msg,
               "isdbgrid",
-              "Expected mongos (isdbgrid), got: " + tojson(im)
+              "Expected mongos (isdbgrid), got: " + JSON.stringify(im)
             );
 
             const listShards = db.adminCommand({ listShards: 1 });
