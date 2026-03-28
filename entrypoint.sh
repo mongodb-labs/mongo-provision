@@ -17,7 +17,9 @@ mlaunch "$@" --bind_ip_all
 echo
 ./print_connstrs.py < data/.mlaunch_startup
 
-./print_connstrs.py --json > ready < data/.mlaunch_startup
+./print_connstrs.py --json > .ready < data/.mlaunch_startup
+
+mv .ready ready
 
 # Hang forever:
 tail -f /dev/null
