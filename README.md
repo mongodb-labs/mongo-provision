@@ -41,6 +41,17 @@ This container stores its state (e.g., mongod data files) under `/data`.
 To introspect that state outside the container, mount a volume to that path
 in the container.
 
+## Pre-downloaded binaries
+The container will, on startup, check whether `/data/bin/mongod` exists. If it
+does, and if its version matches the one given in the container’s
+arguments, that binary will be used rather than downloading a new one.
+
+If the supplied binary’s version mismatches the container’s arguments, the
+container will exit in error.
+
+To use pre-downloaded binaries to start a sharded cluster, provide
+both `/data/bin/mongod` and `/data/bin/mongos`.
+
 ## Readiness checks
 To check whether the cluster is ready, `exec` into the container and check if the
 `ready` file exists. For example:

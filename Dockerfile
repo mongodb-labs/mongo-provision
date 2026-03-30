@@ -17,7 +17,7 @@ RUN pip3 install mtools[all]
 RUN curl -fsSL https://raw.githubusercontent.com/aheckmann/m/master/bin/m > m.sh
 RUN chmod +x m.sh
 
-ENV PATH=$PATH:/root/.local/bin
+ENV PATH=$PATH:/data/bin:/root/.local/bin
 
 COPY entrypoint.sh .
 
