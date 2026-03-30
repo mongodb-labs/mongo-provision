@@ -43,11 +43,8 @@ jobs:
         version: ["4.0", "4.2", "4.4", "5.0", "6.0", "7.0", "8.0"]
         topology:
           - name: single
-            mongo_args: --single
           - name: replset-3
-            mongo_args: --replicaset --nodes 3 --hostname localhost
           - name: sharded-2x3
-            mongo_args: --replicaset --sharded 2 --nodes 3
 
     steps:
       - name: Install mongosh
@@ -79,111 +76,9 @@ jobs:
       - name: Load Docker image
         run: gunzip -c mongo-provision.tar.gz | docker load
 
+      - name: Check out repository
+        uses: actions/checkout@v6
+
       - name: Test
-        env:
-          EXPECTED_VERSION: ${{ matrix.version }}
-          TOPOLOGY: ${{ matrix.topology.name }}
-        run: |
-          set -euo pipefail
+        run: ./test.py "${{ matrix.version }}" "${{ matrix.topology.name }}"
 
-          cleanup() { docker rm -f mongo-test 2>/dev/null || true; }
-          trap cleanup EXIT
-
-          docker run -d --name mongo-test \
-            -p 27017-27099:27017-27099 \
-            mongo-provision "$EXPECTED_VERSION" ${{ matrix.topology.mongo_args }}
-
-          echo "Waiting for cluster to be ready …"
-          timeout 5m bash -c '
-            until docker exec mongo-test [ -e ready ] 2>/dev/null; do
-              if ! docker ps -q --filter name=mongo-test --filter status=running | grep -q .; then
-                echo "Container has exited:" >&2
-                docker logs mongo-test >&2
-                exit 1
-              fi
-              sleep 2
-            done
-          '
-
-          docker logs mongo-test
-
-          CONN=$(docker exec mongo-test cat ready | jq -r .connection_string)
-          echo "Server is ready. Connection string: $CONN"
-
-          if [ "$TOPOLOGY" = single ]; then
-
-            mongosh "$CONN" --eval '
-              const expected = process.env.EXPECTED_VERSION;
-              const im = db.adminCommand({ isMaster: 1 });
-              const ver = db.version();
-              assert(
-                ver.startsWith(expected),
-                "Version mismatch: expected " + expected + ".x, got " + ver
-              );
-              assert(
-                !im.setName,
-                "Expected standalone, got setName=" + im.setName
-              );
-              print("PASS: version=" + ver + ", standalone");
-            '
-
-          elif [ "$TOPOLOGY" = replset-3 ]; then
-
-            mongosh mongodb://localhost:27017 --eval '
-              const expected = process.env.EXPECTED_VERSION;
-              const im = db.adminCommand({ isMaster: 1 });
-              const ver = db.version();
-              assert(
-                ver.startsWith(expected),
-                "Version mismatch: expected " + expected + ".x, got " + ver
-              );
-              assert(im.setName, "Expected a replica set, got standalone");
-              const status = db.adminCommand({ replSetGetStatus: 1 });
-              assert(
-                status.members.length === 3,
-                "Expected 3 nodes, got " + status.members.length
-              );
-              print(
-                "PASS: version=" + ver +
-                ", replica set \"" + im.setName + "\"" +
-                ", " + status.members.length + " nodes"
-              );
-            '
-
-          elif [ "$TOPOLOGY" = sharded-2x3 ]; then
-
-            mongosh "$CONN" --eval '
-              const expected = process.env.EXPECTED_VERSION;
-              const im = db.adminCommand({ isMaster: 1 });
-              const ver = db.version();
-              assert(
-                ver.startsWith(expected),
-                "Version mismatch: expected " + expected + ".x, got " + ver
-              );
-              assert(
-                im.msg === "isdbgrid",
-                "Expected mongos (isdbgrid), got: " + JSON.stringify(im)
-              );
-              const listShards = db.adminCommand({ listShards: 1 });
-              assert(
-                listShards.shards.length === 2,
-                "Expected 2 shards, got " + listShards.shards.length
-              );
-              const firstShardHost = listShards.shards[0].host;
-              const hostsStr = firstShardHost.includes("/")
-                ? firstShardHost.split("/")[1]
-                : firstShardHost;
-              const nodeCount = hostsStr.split(",").length;
-              assert(
-                nodeCount === 3,
-                "Expected 3 nodes/shard, got " + nodeCount +
-                " (host: " + firstShardHost + ")"
-              );
-              print(
-                "PASS: version=" + ver +
-                ", " + listShards.shards.length + " shards" +
-                ", " + nodeCount + " nodes/shard"
-              );
-            '
-
-          fi

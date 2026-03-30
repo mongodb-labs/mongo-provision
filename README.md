@@ -50,7 +50,8 @@ If the supplied binary’s version mismatches the container’s arguments, the
 container will exit in error.
 
 To use pre-downloaded binaries to start a sharded cluster, provide
-both `/data/bin/mongod` and `/data/bin/mongos`.
+both `/data/bin/mongod` and `/data/bin/mongos`. (The given `mongos` must match
+its `mongod`.)
 
 ## Readiness checks
 To check whether the cluster is ready, `exec` into the container and check if the
